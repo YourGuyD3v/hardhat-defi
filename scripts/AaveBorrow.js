@@ -1,4 +1,4 @@
-const { getNamedAccounts, ethers, waffle } = require("hardhat")
+const { getNamedAccounts, ethers } = require("hardhat")
 const { getWeth, AMOUNT } = require("../scripts/GetWeth")
 
 async function main(){
@@ -15,7 +15,7 @@ async function main(){
     console.log("Depositing...")
     await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0)
     console.log("Deposited!")
-    let {availableBorrowsETH, totalDebtETH} = await getBorrowUserData(lendingPool, deployer)
+    let {availableBorrowsETH} = await getBorrowUserData(lendingPool, deployer)
     const daiPrice = await getDaiPrice()
     const amountDaiToBorrow = await availableBorrowsETH.toString() * 0.95 * ( 1 / daiPrice.toNumber() )
     console.log(`You can borrow ${amountDaiToBorrow} DAI`)
@@ -28,16 +28,6 @@ async function main(){
     await repay(amountDaiToBorrowWei, daiTokenAddress, lendingPool, deployer)
     await getBorrowUserData(lendingPool, deployer)
 
-    await swapETHforDAI("ETH", "DAI", amountDaiToBorrowWei)
-    await getBorrowUserData(lendingPool, deployer)
-
-}
-
-async function swapETHforDAI(tokenIn, tokenOut ,amountIn){
-    const ISwapRouter = await ethers.getContractAt("UniswapLiquiditySwapAdapter", "0x6B175474E89094C44Da98b954EedeAC495271d0F")
-    const ISwapRouterTx = await ISwapRouter.ISwapRouter(tokenIn, tokenOut, 0, amountIn)
-    await ISwapRouterTx.wait(1)
-    console.log("Swaapped!!")
 }
 
 async function repay(amount, daiAddress, lendingPool, account) {
@@ -69,13 +59,14 @@ async function getBorrowUserData(lendingPool, account){
 }
 
 async function getLendingPool(account) {
-    const iLendingPoolAddressesProvider = await ethers.getContractAt("ILendingPoolAddressesProvider", "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5", account)
-
-    const lendingPoolAddress = await iLendingPoolAddressesProvider.getLendingPool()
+    const lendingPoolAddressesProvider = await ethers.getContractAt(
+        "ILendingPoolAddressesProvider",
+        "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+        account
+    )
+    const lendingPoolAddress = await lendingPoolAddressesProvider.getLendingPool()
     const lendingPool = await ethers.getContractAt("ILendingPool", lendingPoolAddress, account)
-
     return lendingPool
-
 }
 
 async function approveERC20(erc20Address, spenderAddress, amountToSpend, account) {
